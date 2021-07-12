@@ -1,0 +1,11 @@
+{
+  "name": "katago-analyze-sgf",
+  "version": "0.0.0",
+  "description": "Process SGF files using KataGo",
+  "main": "index.js",
+  "author": "Kevin J. Sung <kevjsung@umich.edu>",
+  "license": "MIT",
+  "dependencies": {
+    "yargs": "^17.0.1"
+  }
+}
