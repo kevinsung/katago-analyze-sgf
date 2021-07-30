@@ -6,6 +6,16 @@
   "author": "Kevin J. Sung <kevjsung@umich.edu>",
   "license": "MIT",
   "dependencies": {
+    "@sabaki/sgf": "^3.4.7",
     "yargs": "^17.0.1"
+  },
+  "devDependencies": {
+    "prettier": "^2.3.2"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "proseWrap": "always"
   }
 }
