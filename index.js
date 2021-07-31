@@ -24,6 +24,28 @@ const SGF_TO_GTP_COL = {
   s: 'T',
 }
 
+const GTP_TO_SGF_COL = {
+  A: 'a',
+  B: 'b',
+  C: 'c',
+  D: 'd',
+  E: 'e',
+  F: 'f',
+  G: 'g',
+  H: 'h',
+  J: 'i',
+  K: 'j',
+  L: 'k',
+  M: 'l',
+  N: 'm',
+  O: 'n',
+  P: 'o',
+  Q: 'p',
+  R: 'q',
+  S: 'r',
+  T: 's',
+}
+
 const SGF_TO_GTP_ROW = {
   a: '1',
   b: '2',
@@ -44,6 +66,28 @@ const SGF_TO_GTP_ROW = {
   q: '17',
   r: '18',
   s: '19',
+}
+
+const GTP_TO_SGF_ROW = {
+  1: 'a',
+  2: 'b',
+  3: 'c',
+  4: 'd',
+  5: 'e',
+  6: 'f',
+  7: 'g',
+  8: 'h',
+  9: 'i',
+  10: 'j',
+  11: 'k',
+  12: 'l',
+  13: 'm',
+  14: 'n',
+  15: 'o',
+  16: 'p',
+  17: 'q',
+  18: 'r',
+  19: 's',
 }
 
 function sgfToGtpMove(move) {
