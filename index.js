@@ -197,6 +197,7 @@ function main() {
   const rootNodes = sgf.parseFile(INPUT_FILE)
 
   const engine = new Engine(katagoPath, analysisConfig)
+  engine.start()
 
   engine.on('ready', async () => {
     const promiseLists = []
@@ -213,7 +214,7 @@ function main() {
       )
     })
     await Promise.all(promises)
-    engine.close()
+    engine.stop()
   })
 }
 
