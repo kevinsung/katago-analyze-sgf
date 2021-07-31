@@ -8,6 +8,9 @@ class Engine extends EventEmitter {
     this.katago = spawn(katagoPath, ['analysis', '-config', analysisConfig])
     this.katago.stdout.setEncoding('utf8')
     this.katago.stdout.on('data', (data) => {
+      // TODO debug "unexpected end of JSON"
+      // TODO (continued) by continually reading until JSON is valid
+      // TODO (continued) use 'readable' event instead of 'data' event
       const formatted = '[' + data.replaceAll('}\n{', '},{') + ']'
       const responses = JSON.parse(formatted)
       responses.forEach((response) => {
@@ -39,6 +42,10 @@ class Engine extends EventEmitter {
     })
     this.katago.stdin.write(JSON.stringify(query) + '\n')
     return promises
+  }
+
+  close() {
+    this.katago.kill()
   }
 }
 

@@ -154,7 +154,7 @@ function main() {
 
   const engine = new Engine(katagoPath, analysisConfig)
 
-  engine.on('ready', () => {
+  engine.on('ready', async () => {
     const promiseLists = []
     const promises = []
     for (let i = 0; i < rootNodes.length; i += 1) {
@@ -168,7 +168,8 @@ function main() {
         })
       )
     })
-    return Promise.all(promises)
+    await Promise.all(promises)
+    engine.close()
   })
 }
 
