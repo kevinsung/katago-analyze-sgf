@@ -1,6 +1,8 @@
 const {spawn} = require('child_process')
 const EventEmitter = require('events')
 
+const BUFFER_SIZE = 1000000
+
 class Engine extends EventEmitter {
   constructor(katagoPath, analysisConfig) {
     super()
@@ -8,10 +10,13 @@ class Engine extends EventEmitter {
     this.katagoPath = katagoPath
     this.analysisConfig = analysisConfig
     this.katago = null
+    this.buffer = Buffer.alloc(BUFFER_SIZE)
+    this.buffer.write('[')
+    this.bufferEnd = 1
   }
 
   start() {
-    if (this.katago) {
+    if (this.katago && !this.katago.killed) {
       return
     }
     this.katago = spawn(this.katagoPath, [
@@ -19,16 +24,31 @@ class Engine extends EventEmitter {
       '-config',
       this.analysisConfig,
     ])
-    this.katago.stdout.setEncoding('utf8')
-    this.katago.stdout.on('data', (data) => {
-      // TODO debug "unexpected end of JSON"
-      // TODO (continued) by continually reading until JSON is valid
-      // TODO (continued) use 'readable' event instead of 'data' event
-      const formatted = '[' + data.replaceAll('}\n{', '},{') + ']'
-      const responses = JSON.parse(formatted)
-      responses.forEach((response) => {
-        this.emit('responseReceived', response)
-      })
+    this.katago.stdout.on('readable', () => {
+      // copy data into buffer
+      let data
+      while ((data = this.katago.stdout.read())) {
+        data.copy(this.buffer, this.bufferEnd)
+        this.bufferEnd += data.length
+        // TODO check if need to remove line feeds (10)
+      }
+      this.buffer.write(']', this.bufferEnd)
+      const subarray = this.buffer.subarray(0, this.bufferEnd + 1)
+      // replace newlines between responses with commas
+      let index
+      while ((index = subarray.indexOf('}\n{')) != -1) {
+        subarray.write(',', index + 1)
+      }
+      // parse JSON
+      try {
+        const responses = JSON.parse(String(subarray))
+        this.bufferEnd = 1
+        responses.forEach((response) => {
+          this.emit('responseReceived', response)
+        })
+      } catch (error) {
+        // JSON couldn't be parsed yet, need to read more data
+      }
     })
     this.katago.stderr.on('data', (data) => {
       const message = String(data)
@@ -44,7 +64,6 @@ class Engine extends EventEmitter {
       return
     }
     this.katago.kill()
-    this.katago = null
   }
 
   sendQuery(query) {
