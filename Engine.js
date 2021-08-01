@@ -50,7 +50,7 @@ class Engine extends EventEmitter {
     })
     this.katago.stderr.on('data', (data) => {
       const message = String(data)
-      console.log(message)
+      console.error(message)
       if (message.includes('Started, ready to begin handling requests')) {
         this.emit('ready')
       }

@@ -1,6 +1,20 @@
-const {spawn} = require('child_process')
+const fsPromises = require('fs/promises')
+const path = require('path')
 const sgf = require('@sabaki/sgf')
 const Engine = require('./Engine')
+
+let ID = 0
+
+function getId() {
+  return ID++
+}
+
+const KATAGO_FIELD_TO_SGF_PROP = {
+  scoreLead: 'SCORELEAD',
+  scoreStdev: 'SCORESTDEV',
+  visits: 'VISITS',
+  winrate: 'WINRATE',
+}
 
 const SGF_TO_GTP_COL = {
   a: 'A',
@@ -98,18 +112,26 @@ function sgfToGtpMove(move) {
   return SGF_TO_GTP_COL[col] + SGF_TO_GTP_ROW[row]
 }
 
-function listMainNodes(rootNode) {
-  const mainNodes = [rootNode]
+function gtpToSgfMove(move) {
+  const col = move[0]
+  const row = move.slice(1)
+  return GTP_TO_SGF_COL[col] + GTP_TO_SGF_ROW[row]
+}
+
+function listMoveNodes(rootNode) {
+  const moveNodes = [rootNode]
   let curr = rootNode
   while (curr.children.length) {
     curr = curr.children[0]
-    mainNodes.push(curr)
+    if (curr.data.B || curr.data.W) {
+      moveNodes.push(curr)
+    }
   }
-  return mainNodes
+  return moveNodes
 }
 
 function constructQuery(id, rootNode) {
-  const mainNodes = listMainNodes(rootNode)
+  const moveNodes = listMoveNodes(rootNode)
   const initialStones = []
   const moves = []
   const analyzeTurns = []
@@ -143,11 +165,10 @@ function constructQuery(id, rootNode) {
     })
   }
 
-  mainNodes.forEach((node) => {
+  moveNodes.forEach((node) => {
     if (node.data.B) {
       moves.push(['B', sgfToGtpMove(node.data.B[0])])
-    }
-    if (node.data.W) {
+    } else if (node.data.W) {
       moves.push(['W', sgfToGtpMove(node.data.W[0])])
     }
   })
@@ -165,6 +186,64 @@ function constructQuery(id, rootNode) {
     boardXSize: Number(boardXSize),
     boardYSize: Number(boardYSize),
     analyzeTurns,
+  }
+}
+
+function createVariationNode(moveInfo, currentPlayer, parentId) {
+  const {move, pv, scoreLead, scoreStdev, visits, winrate} = moveInfo
+  if (!pv.length) {
+    pv.push(move)
+  }
+  const id = getId()
+  const data = {
+    [currentPlayer]: [gtpToSgfMove(pv[0])],
+    [KATAGO_FIELD_TO_SGF_PROP.scoreLead]: [scoreLead],
+    [KATAGO_FIELD_TO_SGF_PROP.scoreStdev]: [scoreStdev],
+    [KATAGO_FIELD_TO_SGF_PROP.visits]: [visits],
+    [KATAGO_FIELD_TO_SGF_PROP.winrate]: [winrate],
+  }
+  const rootNode = {
+    id,
+    data,
+    parentId,
+    children: [],
+  }
+  let parent = rootNode
+  parentId = id
+  currentPlayer = currentPlayer === 'B' ? 'W' : 'B'
+  for (const move of pv.slice(1)) {
+    const id = getId()
+    const data = {[currentPlayer]: [gtpToSgfMove(move)]}
+    const node = {
+      id,
+      data,
+      parentId,
+      children: [],
+    }
+    if (parent) {
+      parent.children.push(node)
+    }
+    parent = node
+    parentId = id
+    currentPlayer = currentPlayer === 'B' ? 'W' : 'B'
+  }
+  return rootNode
+}
+
+function addResponsesToTree(rootNode, responses) {
+  const moveNodes = listMoveNodes(rootNode)
+  for (const response of responses) {
+    const {moveInfos, rootInfo, turnNumber} = response
+    moveInfos.sort((a, b) => a.order - b.order)
+    const {currentPlayer, scoreLead, scoreStdev, visits, winrate} = rootInfo
+    const node = moveNodes[turnNumber]
+    node.data[KATAGO_FIELD_TO_SGF_PROP.scoreLead] = [scoreLead]
+    node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
+    node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
+    node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
+    for (const moveInfo of moveInfos) {
+      node.children.push(createVariationNode(moveInfo, currentPlayer, node.id))
+    }
   }
 }
 
@@ -193,28 +272,27 @@ function main() {
   ).argv
 
   const {INPUT_FILE, katagoPath, analysisConfig} = argv
-
-  const rootNodes = sgf.parseFile(INPUT_FILE)
-
+  const rootNodes = sgf.parseFile(INPUT_FILE, {getId})
   const engine = new Engine(katagoPath, analysisConfig)
   engine.start()
 
   engine.on('ready', async () => {
-    const promiseLists = []
     const promises = []
     for (let i = 0; i < rootNodes.length; i += 1) {
-      const query = constructQuery(String(i), rootNodes[i])
-      promiseLists.push(engine.sendQuery(query))
-    }
-    promiseLists.forEach((promiseList) => {
+      const rootNode = rootNodes[i]
+      const query = constructQuery(String(i), rootNode)
+      responsePromises = engine.sendQuery(query)
       promises.push(
-        Promise.all(promiseList).then((responses) => {
-          console.log(responses)
+        Promise.all(responsePromises).then((responses) => {
+          addResponsesToTree(rootNode, responses)
         })
       )
-    })
+    }
     await Promise.all(promises)
     engine.stop()
+    const {dir, name, ext} = path.parse(INPUT_FILE)
+    const outputFile = path.join(dir, `${name}-analyzed${ext}`)
+    await fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
   })
 }
 
