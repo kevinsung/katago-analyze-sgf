@@ -1,8 +1,7 @@
 const {spawn} = require('child_process')
 const EventEmitter = require('events')
 
-// TODO maybe make this bigger
-const BUFFER_SIZE = 1000000
+const BUFFER_SIZE = 10000000
 
 class Engine extends EventEmitter {
   constructor(katagoPath, analysisConfig) {
