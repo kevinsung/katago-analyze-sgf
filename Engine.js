@@ -1,6 +1,7 @@
 const {spawn} = require('child_process')
 const EventEmitter = require('events')
 
+// TODO maybe make this bigger
 const BUFFER_SIZE = 1000000
 
 class Engine extends EventEmitter {
@@ -33,15 +34,13 @@ class Engine extends EventEmitter {
         // TODO check if need to remove line feeds (10)
       }
       this.buffer.write(']', this.bufferEnd)
-      const subarray = this.buffer.subarray(0, this.bufferEnd + 1)
       // replace newlines between responses with commas
-      let index
-      while ((index = subarray.indexOf('}\n{')) != -1) {
-        subarray.write(',', index + 1)
-      }
+      const str = this.buffer
+        .toString('utf8', 0, this.bufferEnd + 1)
+        .replaceAll('}\n{', '},{')
       // parse JSON
       try {
-        const responses = JSON.parse(String(subarray))
+        const responses = JSON.parse(str)
         this.bufferEnd = 1
         responses.forEach((response) => {
           this.emit('responseReceived', response)
