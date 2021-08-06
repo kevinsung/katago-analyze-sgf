@@ -256,10 +256,6 @@ function main() {
         describe: 'The SGF file to process.',
         type: 'string',
       })
-      yargs.option('file', {
-        describe: 'A file containing the names of the SGF files to process.',
-        type: 'string',
-      })
       yargs.option('katago-path', {
         describe: 'Path to the KataGo executable.',
         default: 'katago',
