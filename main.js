@@ -262,6 +262,7 @@ function main() {
       })
       yargs.option('katago-path', {
         describe: 'Path to the KataGo executable.',
+        default: 'katago',
         type: 'string',
       })
       yargs.option('analysis-config', {
