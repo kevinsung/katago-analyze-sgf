@@ -249,11 +249,11 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
 
 function main() {
   const argv = require('yargs').command(
-    '$0 INPUT_FILE',
+    '$0 <FILE..>',
     'Process SGF files using the KataGo analysis engine.',
     (yargs) => {
-      yargs.positional('INPUT_FILE', {
-        describe: 'The SGF file to process.',
+      yargs.positional('FILE', {
+        describe: 'The SGF files to process.',
         type: 'string',
       })
       yargs.option('katago-path', {
@@ -272,29 +272,39 @@ function main() {
     }
   ).argv
 
-  const {INPUT_FILE, katagoPath, analysisConfig, maxVariations} = argv
-  const rootNodes = sgf.parseFile(INPUT_FILE, {getId})
+  const {FILE, katagoPath, analysisConfig, maxVariations} = argv
+
+  const rootNodeLists = {}
+  for (const file of FILE) {
+    rootNodeLists[file] = sgf.parseFile(file, {getId})
+  }
+
   const engine = new Engine(katagoPath, analysisConfig)
-  engine.start()
 
   engine.on('ready', async () => {
     const promises = []
-    for (let i = 0; i < rootNodes.length; i += 1) {
-      const rootNode = rootNodes[i]
-      const query = constructQuery(String(i), rootNode)
-      responsePromises = engine.sendQuery(query)
-      promises.push(
-        Promise.all(responsePromises).then((responses) => {
+    for (const [file, rootNodes] of Object.entries(rootNodeLists)) {
+      const filePromises = []
+      for (const [i, rootNode] of rootNodes.entries()) {
+        const query = constructQuery(`${file}-${i}`, rootNode)
+        responsePromises = engine.sendQuery(query)
+        const promise = Promise.all(responsePromises).then((responses) => {
           addResponsesToTree(rootNode, responses, maxVariations)
         })
-      )
+        filePromises.push(promise)
+      }
+      const promise = Promise.all(filePromises).then(() => {
+        const {dir, name, ext} = path.parse(file)
+        const outputFile = path.join(dir, `${name}-analyzed${ext}`)
+        return fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
+      })
+      promises.push(promise)
     }
     await Promise.all(promises)
     engine.stop()
-    const {dir, name, ext} = path.parse(INPUT_FILE)
-    const outputFile = path.join(dir, `${name}-analyzed${ext}`)
-    await fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
   })
+
+  engine.start()
 }
 
 if (module === require.main) {
