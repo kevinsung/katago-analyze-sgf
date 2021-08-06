@@ -230,7 +230,7 @@ function createVariationNode(moveInfo, currentPlayer, parentId) {
   return rootNode
 }
 
-function addResponsesToTree(rootNode, responses) {
+function addResponsesToTree(rootNode, responses, maxVariations) {
   const moveNodes = listMoveNodes(rootNode)
   for (const response of responses) {
     const {moveInfos, rootInfo, turnNumber} = response
@@ -241,7 +241,7 @@ function addResponsesToTree(rootNode, responses) {
     node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
     node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
     node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
-    for (const moveInfo of moveInfos) {
+    for (const moveInfo of moveInfos.slice(0, maxVariations)) {
       node.children.push(createVariationNode(moveInfo, currentPlayer, node.id))
     }
   }
@@ -265,10 +265,14 @@ function main() {
         describe: 'Path to the analysis configuration file.',
         type: 'string',
       })
+      yargs.option('max-variations', {
+        describe: 'Maximum number of variations to add to each move.',
+        type: 'number',
+      })
     }
   ).argv
 
-  const {INPUT_FILE, katagoPath, analysisConfig} = argv
+  const {INPUT_FILE, katagoPath, analysisConfig, maxVariations} = argv
   const rootNodes = sgf.parseFile(INPUT_FILE, {getId})
   const engine = new Engine(katagoPath, analysisConfig)
   engine.start()
@@ -281,7 +285,7 @@ function main() {
       responsePromises = engine.sendQuery(query)
       promises.push(
         Promise.all(responsePromises).then((responses) => {
-          addResponsesToTree(rootNode, responses)
+          addResponsesToTree(rootNode, responses, maxVariations)
         })
       )
     }
