@@ -241,6 +241,7 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
     node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
     node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
     node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
+    // TODO skip moves that are the same as the move played
     for (const moveInfo of moveInfos.slice(0, maxVariations)) {
       node.children.push(createVariationNode(moveInfo, currentPlayer, node.id))
     }
@@ -256,18 +257,19 @@ function main() {
         describe: 'The SGF files to process.',
         type: 'string',
       })
-      yargs.option('katago-path', {
-        describe: 'Path to the KataGo executable.',
-        default: 'katago',
-        type: 'string',
-      })
       yargs.option('analysis-config', {
         describe: 'Path to the analysis configuration file.',
         type: 'string',
       })
+      yargs.option('katago-path', {
+        describe: 'Path to the KataGo executable.',
+        type: 'string',
+        default: 'katago',
+      })
       yargs.option('max-variations', {
         describe: 'Maximum number of variations to add to each move.',
         type: 'number',
+        default: Infinity,
       })
     }
   ).argv
