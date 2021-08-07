@@ -233,16 +233,26 @@ function createVariationNode(moveInfo, currentPlayer, parentId) {
 function addResponsesToTree(rootNode, responses, maxVariations) {
   const moveNodes = listMoveNodes(rootNode)
   for (const response of responses) {
-    const {moveInfos, rootInfo, turnNumber} = response
-    moveInfos.sort((a, b) => a.order - b.order)
-    const {currentPlayer, scoreLead, scoreStdev, visits, winrate} = rootInfo
+    let {moveInfos, rootInfo, turnNumber} = response
     const node = moveNodes[turnNumber]
+    const {currentPlayer, scoreLead, scoreStdev, visits, winrate} = rootInfo
+
     node.data[KATAGO_FIELD_TO_SGF_PROP.scoreLead] = [scoreLead]
     node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
     node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
     node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
-    // TODO skip moves that are the same as the move played
-    for (const moveInfo of moveInfos.slice(0, maxVariations)) {
+
+    const gameMoveNode = node.children && node.children[0]
+    let gameMove =
+      gameMoveNode &&
+      ((gameMoveNode.data.B && gameMoveNode.data.B[0]) ||
+        (gameMoveNode.data.W && gameMoveNode.data.W[0]))
+    gameMove = gameMove && sgfToGtpMove(gameMove)
+    moveInfos = moveInfos
+      .filter((moveInfo) => moveInfo.move !== gameMove)
+      .sort((a, b) => a.order - b.order)
+      .slice(0, maxVariations)
+    for (const moveInfo of moveInfos) {
       node.children.push(createVariationNode(moveInfo, currentPlayer, node.id))
     }
   }
