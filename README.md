@@ -1,6 +1,6 @@
 # katago-analyze-sgf
 
-Add analysis to SGF files using KataGo.
+Add analysis to SGF files using [KataGo](https://github.com/lightvector/KataGo).
 
 ## Usage
 
