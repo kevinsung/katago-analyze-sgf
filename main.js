@@ -301,7 +301,7 @@ function main() {
       const filePromises = []
       for (const [i, rootNode] of rootNodes.entries()) {
         const query = constructQuery(`${file}-${i}`, rootNode)
-        responsePromises = engine.sendQuery(query)
+        const responsePromises = engine.sendQuery(query)
         const promise = Promise.all(responsePromises).then((responses) => {
           addResponsesToTree(rootNode, responses, maxVariations)
         })
