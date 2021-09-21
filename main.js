@@ -149,8 +149,10 @@ function constructQuery(id, rootNode) {
         break
       case 'korean':
         rules = 'korean'
+        break
       case 'aga':
         rules = 'aga'
+        break
     }
   }
 
