@@ -237,12 +237,15 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
   for (const response of responses) {
     let {moveInfos, rootInfo, turnNumber} = response
     const node = moveNodes[turnNumber]
-    const {currentPlayer, scoreLead, scoreStdev, visits, winrate} = rootInfo
+    const {currentPlayer, scoreLead, scoreStdev, winrate} = rootInfo
 
-    node.data[KATAGO_FIELD_TO_SGF_PROP.scoreLead] = [scoreLead]
-    node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
-    node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
-    node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
+    if (!node.data[KATAGO_FIELD_TO_SGF_PROP.visits]) {
+      node.data[KATAGO_FIELD_TO_SGF_PROP.scoreLead] = [scoreLead]
+      node.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
+      // root visits don't accurately represent move value
+      node.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [0]
+      node.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
+    }
 
     const gameMoveNode = node.children && node.children[0]
     let gameMove =
@@ -252,12 +255,22 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
     gameMove = gameMove && sgfToGtpMove(gameMove)
     moveInfos = moveInfos
       .filter(
-        (moveInfo) => moveInfo.move !== gameMove && !moveInfo.isSymmetryOf
+        (moveInfo) => moveInfo.move === gameMove || !moveInfo.isSymmetryOf
       )
       .sort((a, b) => a.order - b.order)
       .slice(0, maxVariations)
     for (const moveInfo of moveInfos) {
-      node.children.push(createVariationNode(moveInfo, currentPlayer, node.id))
+      if (gameMoveNode && moveInfo.move === gameMove) {
+        const {scoreLead, scoreStdev, visits, winrate} = moveInfo
+        gameMoveNode.data[KATAGO_FIELD_TO_SGF_PROP.scoreLead] = [scoreLead]
+        gameMoveNode.data[KATAGO_FIELD_TO_SGF_PROP.scoreStdev] = [scoreStdev]
+        gameMoveNode.data[KATAGO_FIELD_TO_SGF_PROP.visits] = [visits]
+        gameMoveNode.data[KATAGO_FIELD_TO_SGF_PROP.winrate] = [winrate]
+      } else {
+        node.children.push(
+          createVariationNode(moveInfo, currentPlayer, node.id)
+        )
+      }
     }
   }
 }
