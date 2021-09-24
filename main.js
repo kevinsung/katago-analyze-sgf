@@ -251,7 +251,9 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
         (gameMoveNode.data.W && gameMoveNode.data.W[0]))
     gameMove = gameMove && sgfToGtpMove(gameMove)
     moveInfos = moveInfos
-      .filter((moveInfo) => moveInfo.move !== gameMove)
+      .filter(
+        (moveInfo) => moveInfo.move !== gameMove && !moveInfo.isSymmetryOf
+      )
       .sort((a, b) => a.order - b.order)
       .slice(0, maxVariations)
     for (const moveInfo of moveInfos) {
