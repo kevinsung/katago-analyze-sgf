@@ -68,11 +68,15 @@ class Engine extends EventEmitter {
     const {id, analyzeTurns} = query
     const promises = []
     analyzeTurns.forEach((turnNumber) => {
-      const promise = new Promise((resolve) => {
+      const promise = new Promise((resolve, reject) => {
         this.on('responseReceived', (response) => {
           const {id: responseId, turnNumber: responseTurnNumber} = response
-          if (responseId === id && responseTurnNumber === turnNumber) {
-            resolve(response)
+          if (responseId === id) {
+            if (response.error) {
+              reject(response)
+            } else if (responseTurnNumber === turnNumber) {
+              resolve(response)
+            }
           }
         })
       })

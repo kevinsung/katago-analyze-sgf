@@ -1,7 +1,12 @@
 const fsPromises = require('fs/promises')
+const net = require('net')
 const path = require('path')
 const sgf = require('@sabaki/sgf')
 const Engine = require('./Engine')
+
+const LISTEN_PORT = 6364
+
+const JOBS = new Set()
 
 let ID = 0
 
@@ -277,14 +282,10 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
 
 function main() {
   const argv = require('yargs').command(
-    '$0 <FILE..>',
-    'Process SGF files using the KataGo analysis engine.',
+    '$0 ANALYSIS_CONFIG',
+    'Process SGF files using the KataGo analysis engine - daemon.',
     (yargs) => {
-      yargs.positional('FILE', {
-        describe: 'The SGF files to process.',
-        type: 'string',
-      })
-      yargs.option('analysis-config', {
+      yargs.positional('ANALYSIS_CONFIG', {
         describe: 'Path to the analysis configuration file.',
         type: 'string',
       })
@@ -301,39 +302,77 @@ function main() {
     }
   ).argv
 
-  const {FILE, katagoPath, analysisConfig, maxVariations} = argv
+  const {ANALYSIS_CONFIG, katagoPath, maxVariations} = argv
 
-  const rootNodeLists = {}
-  for (const file of FILE) {
-    rootNodeLists[file] = sgf.parseFile(file, {getId})
-  }
-
-  const engine = new Engine(katagoPath, analysisConfig)
-
-  engine.on('ready', async () => {
-    const promises = []
-    for (const [file, rootNodes] of Object.entries(rootNodeLists)) {
-      const filePromises = []
-      for (const [i, rootNode] of rootNodes.entries()) {
-        const query = constructQuery(`${file}-${i}`, rootNode)
-        const responsePromises = engine.sendQuery(query)
-        const promise = Promise.all(responsePromises).then((responses) => {
-          addResponsesToTree(rootNode, responses, maxVariations)
-        })
-        filePromises.push(promise)
-      }
-      const promise = Promise.all(filePromises).then(() => {
-        const {dir, name, ext} = path.parse(file)
-        const outputFile = path.join(dir, `${name}-analyzed${ext}`)
-        return fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
-      })
-      promises.push(promise)
-    }
-    await Promise.all(promises)
-    engine.stop()
-  })
+  const engine = new Engine(katagoPath, ANALYSIS_CONFIG)
 
   engine.start()
+
+  const server = net.createServer((connection) => {
+    connection.on('data', (data) => {
+      const request = JSON.parse(data)
+      const {method, params, id} = request
+      switch (method) {
+        case 'submit': {
+          const filename = params[0]
+          if (JOBS.has(filename)) {
+            break
+          }
+          JOBS.add(filename)
+          const rootNodes = sgf.parseFile(filename, {getId})
+          const filePromises = []
+          for (const [i, rootNode] of rootNodes.entries()) {
+            const query = constructQuery(`${filename}-${i}`, rootNode)
+            const responsePromises = engine.sendQuery(query)
+            const promise = Promise.all(responsePromises).then((responses) => {
+              addResponsesToTree(rootNode, responses, maxVariations)
+            })
+            filePromises.push(promise)
+          }
+          Promise.all(filePromises)
+            .then(() => {
+              const {dir, name, ext} = path.parse(filename)
+              const outputFile = path.join(dir, `${name}-analyzed${ext}`)
+              return fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
+            })
+            .catch((response) => {
+              console.error('Error:')
+              console.error(response)
+            })
+            .then(() => JOBS.delete(filename))
+          const response = {
+            result: filename,
+            id,
+          }
+          connection.write(JSON.stringify(response))
+          break
+        }
+        case 'list-jobs': {
+          const jobs = []
+          for (const filename of JOBS) {
+            jobs.push(filename)
+          }
+          const response = {
+            result: jobs.join('\n'),
+            id,
+          }
+          connection.write(JSON.stringify(response))
+          break
+        }
+        default: {
+          const error = {
+            code: -32601,
+            message: 'Command not found.',
+            data: method,
+          }
+          const response = {error, id}
+          connection.write(JSON.stringify(response))
+        }
+      }
+    })
+  })
+
+  server.listen(LISTEN_PORT)
 }
 
 if (module === require.main) {
