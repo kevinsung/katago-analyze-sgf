@@ -334,44 +334,57 @@ function main() {
         case 'submit': {
           const filename = params[0]
           if (!JOBS.has(filename)) {
-            log(`Started processing ${filename}.`)
-            JOBS.add(filename)
             let filePath = filename
             if (sourceDir) {
               filePath = path.join(sourceDir, filePath)
             }
-            const rootNodes = sgf.parseFile(filePath, {getId})
-            const filePromises = []
-            for (const [i, rootNode] of rootNodes.entries()) {
-              const query = constructQuery(`${filename}-${i}`, rootNode)
-              const responsePromises = engine.sendQuery(query)
-              const promise = Promise.all(responsePromises).then(
-                (responses) => {
-                  addResponsesToTree(rootNode, responses, maxVariations)
-                }
-              )
-              filePromises.push(promise)
-            }
-            Promise.all(filePromises)
+            fsPromises
+              .stat(filePath)
               .then(() => {
-                const {dir, name, ext} = path.parse(filename)
-                const outputFile = path.join(dir, `${name}-analyzed${ext}`)
-                let outputPath = outputFile
-                if (destinationDir) {
-                  outputPath = path.join(destinationDir, outputPath)
+                JOBS.add(filename)
+                log(`Started processing ${filename}.`)
+                const rootNodes = sgf.parseFile(filePath, {getId})
+                const filePromises = []
+                for (const [i, rootNode] of rootNodes.entries()) {
+                  const query = constructQuery(`${filename}-${i}`, rootNode)
+                  const responsePromises = engine.sendQuery(query)
+                  const promise = Promise.all(responsePromises).then(
+                    (responses) => {
+                      addResponsesToTree(rootNode, responses, maxVariations)
+                    }
+                  )
+                  filePromises.push(promise)
                 }
-                return fsPromises.writeFile(
-                  outputPath,
-                  sgf.stringify(rootNodes)
-                )
+                Promise.all(filePromises)
+                  .then(() => {
+                    const {dir, name, ext} = path.parse(filename)
+                    const outputFile = path.join(dir, `${name}-analyzed${ext}`)
+                    let outputPath = outputFile
+                    if (destinationDir) {
+                      outputPath = path.join(destinationDir, outputPath)
+                    }
+                    return fsPromises.writeFile(
+                      outputPath,
+                      sgf.stringify(rootNodes)
+                    )
+                  })
+                  .catch((response) => {
+                    log('Error:')
+                    log(response)
+                  })
+                  .then(() => {
+                    JOBS.delete(filename)
+                    log(`Finished processing ${filename}.`)
+                  })
               })
-              .catch((response) => {
-                log('Error:')
-                log(response)
-              })
-              .then(() => {
-                JOBS.delete(filename)
-                log(`Finished processing ${filename}.`)
+              .catch((error) => {
+                switch (error.code) {
+                  case 'ENOENT':
+                    log(`Error: File ${filePath} does not exist.`)
+                    break
+                  default:
+                    log(error)
+                }
               })
           }
           const response = {
