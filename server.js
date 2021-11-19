@@ -14,6 +14,10 @@ function getId() {
   return ID++
 }
 
+function log(message) {
+  console.error(`[${new Date().toLocaleString()}] ${message}`)
+}
+
 const KATAGO_FIELD_TO_SGF_PROP = {
   scoreLead: 'SCORELEAD',
   scoreStdev: 'SCORESTDEV',
@@ -332,6 +336,7 @@ function main() {
           if (JOBS.has(filename)) {
             break
           }
+          log(`Started processing ${filename}.`)
           JOBS.add(filename)
           let filePath = filename
           if (sourceDir) {
@@ -358,10 +363,14 @@ function main() {
               return fsPromises.writeFile(outputPath, sgf.stringify(rootNodes))
             })
             .catch((response) => {
-              console.error('Error:')
-              console.error(response)
+              log('Error:')
+              log(response)
             })
-            .then(() => JOBS.delete(filename))
+            .then(() => {
+              JOBS.delete(filename)
+              log(`Finished processing ${filename}.`)
+            })
+
           const response = {
             result: filename,
             id,
