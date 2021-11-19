@@ -370,7 +370,7 @@ function main() {
                   })
                   .catch((response) => {
                     log('Error:')
-                    log(response)
+                    log(JSON.stringify(response))
                   })
                   .then(() => {
                     JOBS.delete(filename)
@@ -383,7 +383,7 @@ function main() {
                     log(`Error: File ${filePath} does not exist.`)
                     break
                   default:
-                    log(error)
+                    log(String(error))
                 }
               })
           }
