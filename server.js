@@ -299,10 +299,24 @@ function main() {
         type: 'number',
         default: Infinity,
       })
+      yargs.option('source-dir', {
+        describe: 'Directory containing the original SGF files.',
+        type: 'string',
+      })
+      yargs.option('destination-dir', {
+        describe: 'Directory to save the generated SGF files.',
+        type: 'string',
+      })
     }
   ).argv
 
-  const {ANALYSIS_CONFIG, katagoPath, maxVariations} = argv
+  const {
+    ANALYSIS_CONFIG,
+    katagoPath,
+    maxVariations,
+    sourceDir,
+    destinationDir,
+  } = argv
 
   const engine = new Engine(katagoPath, ANALYSIS_CONFIG)
 
@@ -319,7 +333,11 @@ function main() {
             break
           }
           JOBS.add(filename)
-          const rootNodes = sgf.parseFile(filename, {getId})
+          let filePath = filename
+          if (sourceDir) {
+            filePath = path.join(sourceDir, filePath)
+          }
+          const rootNodes = sgf.parseFile(filePath, {getId})
           const filePromises = []
           for (const [i, rootNode] of rootNodes.entries()) {
             const query = constructQuery(`${filename}-${i}`, rootNode)
@@ -333,7 +351,11 @@ function main() {
             .then(() => {
               const {dir, name, ext} = path.parse(filename)
               const outputFile = path.join(dir, `${name}-analyzed${ext}`)
-              return fsPromises.writeFile(outputFile, sgf.stringify(rootNodes))
+              let outputPath = outputFile
+              if (destinationDir) {
+                outputPath = path.join(destinationDir, outputPath)
+              }
+              return fsPromises.writeFile(outputPath, sgf.stringify(rootNodes))
             })
             .catch((response) => {
               console.error('Error:')
