@@ -4,7 +4,7 @@ const SERVER_PORT = 6364
 
 function main() {
   const argv = require('yargs').command(
-    '$0 COMMAND [PARAMS..]',
+    '$0 COMMAND [PARAMS]',
     'Process SGF files using the KataGo analysis engine - daemon.',
     (yargs) => {
       yargs.positional('COMMAND', {
@@ -18,7 +18,10 @@ function main() {
     }
   ).argv
 
-  const {COMMAND, PARAMS} = argv
+  let {COMMAND, PARAMS} = argv
+  try {
+    PARAMS = JSON.parse(PARAMS)
+  } catch {}
 
   const connection = net.createConnection(SERVER_PORT)
 

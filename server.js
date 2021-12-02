@@ -6,6 +6,9 @@ const Engine = require('./Engine')
 
 const LISTEN_PORT = 6364
 
+const DEFAULT_MAX_VARIATIONS = 10
+const DEFAULT_MAX_VISITS = 1000
+
 const JOBS = new Set()
 
 let ID = 0
@@ -139,7 +142,7 @@ function listMoveNodes(rootNode) {
   return moveNodes
 }
 
-function constructQuery(id, rootNode) {
+function constructQuery(id, rootNode, maxVisits) {
   const moveNodes = listMoveNodes(rootNode)
   const initialStones = []
   const moves = []
@@ -197,6 +200,7 @@ function constructQuery(id, rootNode) {
     boardXSize: Number(boardXSize),
     boardYSize: Number(boardYSize),
     analyzeTurns,
+    maxVisits,
   }
 }
 
@@ -298,11 +302,6 @@ function main() {
         type: 'string',
         default: 'katago',
       })
-      yargs.option('max-variations', {
-        describe: 'Maximum number of variations to add to each move.',
-        type: 'number',
-        default: Infinity,
-      })
       yargs.option('source-dir', {
         describe: 'Directory containing the original SGF files.',
         type: 'string',
@@ -314,13 +313,7 @@ function main() {
     }
   ).argv
 
-  const {
-    ANALYSIS_CONFIG,
-    katagoPath,
-    maxVariations,
-    sourceDir,
-    destinationDir,
-  } = argv
+  const {ANALYSIS_CONFIG, katagoPath, sourceDir, destinationDir} = argv
 
   const engine = new Engine(katagoPath, ANALYSIS_CONFIG)
 
@@ -332,7 +325,18 @@ function main() {
       const {method, params, id} = request
       switch (method) {
         case 'submit': {
-          const filename = params[0]
+          let filename
+          let maxVariations
+          let maxVisits
+          if (typeof params === 'string') {
+            filename = params
+            maxVariations = DEFAULT_MAX_VARIATIONS
+            maxVisits = DEFAULT_MAX_VISITS
+          } else {
+            filename = params.filename
+            maxVariations = params.maxVariations || DEFAULT_MAX_VARIATIONS
+            maxVisits = params.maxVisits || DEFAULT_MAX_VISITS
+          }
           if (!JOBS.has(filename)) {
             let filePath = filename
             if (sourceDir) {
@@ -346,7 +350,11 @@ function main() {
                 const rootNodes = sgf.parseFile(filePath, {getId})
                 const filePromises = []
                 for (const [i, rootNode] of rootNodes.entries()) {
-                  const query = constructQuery(`${filename}-${i}`, rootNode)
+                  const query = constructQuery(
+                    `${filename}-${i}`,
+                    rootNode,
+                    maxVisits
+                  )
                   const responsePromises = engine.sendQuery(query)
                   const promise = Promise.all(responsePromises).then(
                     (responses) => {
