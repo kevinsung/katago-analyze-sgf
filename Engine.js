@@ -23,6 +23,7 @@ class Engine extends EventEmitter {
       'analysis',
       '-config',
       this.analysisConfig,
+      '-quit-without-waiting',
     ])
     this.katago.stdout.on('readable', () => {
       // copy data into buffer
