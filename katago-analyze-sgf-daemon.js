@@ -7,7 +7,7 @@ const net = require('net')
 const path = require('path')
 const sgf = require('@sabaki/sgf')
 
-const LISTEN_PORT = 6364
+const DEFAULT_LISTEN_PORT = 6364
 const DEFAULT_MAX_VARIATIONS = 10
 const DEFAULT_MAX_VISITS = 1000
 
@@ -386,6 +386,11 @@ function main() {
         describe: 'Path to the analysis configuration file.',
         type: 'string',
       })
+      yargs.option('port', {
+        describe: 'Port to listen on.',
+        type: 'number',
+        default: DEFAULT_LISTEN_PORT,
+      })
       yargs.option('katago-path', {
         describe: 'Path to the KataGo executable.',
         type: 'string',
@@ -402,7 +407,7 @@ function main() {
     }
   ).argv
 
-  const {ANALYSIS_CONFIG, katagoPath, sourceDir, destinationDir} = argv
+  const {ANALYSIS_CONFIG, port, katagoPath, sourceDir, destinationDir} = argv
 
   const engine = new Engine(katagoPath, ANALYSIS_CONFIG)
 
@@ -516,7 +521,7 @@ function main() {
     })
   })
 
-  server.listen(LISTEN_PORT)
+  server.listen(port)
 }
 
 if (module === require.main) {

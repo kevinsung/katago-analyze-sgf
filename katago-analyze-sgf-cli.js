@@ -6,9 +6,14 @@ const SERVER_PORT = 6364
 
 function main() {
   const argv = require('yargs').command(
-    '$0 COMMAND [PARAMS]',
+    '$0 [OPTIONS] COMMAND [PARAMS]',
     'Process SGF files using the KataGo analysis engine - client.',
     (yargs) => {
+      yargs.option('port', {
+        describe: 'Port that the katago-analyze-sgf daemon is listening on.',
+        type: 'number',
+        default: SERVER_PORT,
+      })
       yargs.positional('COMMAND', {
         describe: 'The command. Options: "submit", "list-jobs"',
         type: 'string',
@@ -20,18 +25,18 @@ function main() {
     }
   ).argv
 
-  let {COMMAND, PARAMS} = argv
+  let {port, COMMAND, PARAMS} = argv
   try {
     PARAMS = JSON.parse(PARAMS)
   } catch {}
 
-  const connection = net.createConnection(SERVER_PORT)
+  const connection = net.createConnection(port)
 
   connection.on('error', (error) => {
     switch (error.code) {
       case 'ECONNREFUSED':
         console.error(
-          `Error: Could not connect to server port ${SERVER_PORT}. ` +
+          `Error: Could not connect to server port ${port}. ` +
             'Make sure the KataGo analysis server is running.'
         )
         break
