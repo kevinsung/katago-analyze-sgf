@@ -1,3 +1,5 @@
+#!/bin/node
+
 const net = require('net')
 
 const SERVER_PORT = 6364

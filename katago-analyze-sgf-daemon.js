@@ -1,25 +1,17 @@
+#!/bin/node
+
+const {spawn} = require('child_process')
+const EventEmitter = require('events')
 const fsPromises = require('fs/promises')
 const net = require('net')
 const path = require('path')
 const sgf = require('@sabaki/sgf')
-const Engine = require('./Engine')
 
 const LISTEN_PORT = 6364
-
 const DEFAULT_MAX_VARIATIONS = 10
 const DEFAULT_MAX_VISITS = 1000
 
-const JOBS = new Set()
-
-let ID = 0
-
-function getId() {
-  return ID++
-}
-
-function log(message) {
-  console.error(`[${new Date().toLocaleString()}] ${message}`)
-}
+const BUFFER_SIZE = 10000000
 
 const KATAGO_FIELD_TO_SGF_PROP = {
   scoreLead: 'SCORELEAD',
@@ -114,6 +106,103 @@ const GTP_TO_SGF_ROW = {
   17: 'q',
   18: 'r',
   19: 's',
+}
+
+class Engine extends EventEmitter {
+  constructor(katagoPath, analysisConfig) {
+    super()
+    this.setMaxListeners(Infinity)
+    this.katagoPath = katagoPath
+    this.analysisConfig = analysisConfig
+    this.katago = null
+    this.buffer = Buffer.alloc(BUFFER_SIZE)
+    this.buffer.write('[')
+    this.bufferEnd = 1
+  }
+
+  start() {
+    if (this.katago && !this.katago.killed) {
+      return
+    }
+    this.katago = spawn(this.katagoPath, [
+      'analysis',
+      '-config',
+      this.analysisConfig,
+      '-quit-without-waiting',
+    ])
+    this.katago.stdout.on('readable', () => {
+      // copy data into buffer
+      let data
+      while ((data = this.katago.stdout.read())) {
+        data.copy(this.buffer, this.bufferEnd)
+        this.bufferEnd += data.length
+        // TODO check if need to remove line feeds (10)
+      }
+      this.buffer.write(']', this.bufferEnd)
+      // replace newlines between responses with commas
+      const str = this.buffer
+        .toString('utf8', 0, this.bufferEnd + 1)
+        .replaceAll('}\n{', '},{')
+      // parse JSON
+      try {
+        const responses = JSON.parse(str)
+        this.bufferEnd = 1
+        responses.forEach((response) => {
+          this.emit('responseReceived', response)
+        })
+      } catch (error) {
+        // JSON couldn't be parsed yet, need to read more data
+      }
+    })
+    this.katago.stderr.on('data', (data) => {
+      const message = String(data)
+      console.error(message)
+      if (message.includes('Started, ready to begin handling requests')) {
+        this.emit('ready')
+      }
+    })
+  }
+
+  stop() {
+    if (!this.katago) {
+      return
+    }
+    this.katago.kill()
+  }
+
+  sendQuery(query) {
+    const {id, analyzeTurns} = query
+    const promises = []
+    analyzeTurns.forEach((turnNumber) => {
+      const promise = new Promise((resolve, reject) => {
+        this.on('responseReceived', (response) => {
+          const {id: responseId, turnNumber: responseTurnNumber} = response
+          if (responseId === id) {
+            if (response.error) {
+              reject(response)
+            } else if (responseTurnNumber === turnNumber) {
+              resolve(response)
+            }
+          }
+        })
+      })
+      promises.push(promise)
+    })
+    this.katago.stdin.write(JSON.stringify(query) + '\n')
+    return promises
+  }
+}
+
+const JOBS = new Set()
+
+let ID = 0
+
+function getId() {
+  return ID++
+}
+
+function log(message) {
+  console.error(`[${new Date().toLocaleString()}] ${message}`)
 }
 
 function sgfToGtpMove(move) {
@@ -290,7 +379,7 @@ function addResponsesToTree(rootNode, responses, maxVariations) {
 
 function main() {
   const argv = require('yargs').command(
-    '$0 ANALYSIS_CONFIG',
+    '$0 ANALYSIS_CONFIG [OPTIONS]',
     'Process SGF files using the KataGo analysis engine - daemon.',
     (yargs) => {
       yargs.positional('ANALYSIS_CONFIG', {
