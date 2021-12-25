@@ -7,7 +7,7 @@ const SERVER_PORT = 6364
 function main() {
   const argv = require('yargs').command(
     '$0 COMMAND [PARAMS]',
-    'Process SGF files using the KataGo analysis engine - daemon.',
+    'Process SGF files using the KataGo analysis engine - client.',
     (yargs) => {
       yargs.positional('COMMAND', {
         describe: 'The command. Options: "submit", "list-jobs"',
