@@ -5,11 +5,17 @@
   "main": "main.js",
   "author": "Kevin J. Sung <kevjsung@umich.edu>",
   "license": "MIT",
+  "scripts": {
+    "build": "npm run build-daemon && npm run build-cli",
+    "build-daemon": "esbuild katago-analyze-sgf-daemon.js --platform=node --bundle --outfile=katago-analyze-sgf-daemon-bundled.js",
+    "build-cli": "esbuild katago-analyze-sgf-cli.js --platform=node --bundle --outfile=katago-analyze-sgf-cli-bundled.js"
+  },
   "dependencies": {
     "@sabaki/sgf": "^3.4.7",
     "yargs": "^17.0.1"
   },
   "devDependencies": {
+    "esbuild": "^0.14.8",
     "eslint": "^7.32.0",
     "prettier": "^2.3.2"
   },
