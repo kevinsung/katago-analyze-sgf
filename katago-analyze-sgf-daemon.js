@@ -520,7 +520,7 @@ function main() {
         }
         case 'list-jobs': {
           const jobs = []
-          for (const filename of JOBS) {
+          for (const filename of JOBS.keys()) {
             jobs.push(filename)
           }
           const response = {
