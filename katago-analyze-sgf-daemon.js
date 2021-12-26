@@ -423,17 +423,12 @@ function main() {
       const {method, params, id} = request
       switch (method) {
         case 'submit': {
-          let filename
-          let maxVariations
-          let maxVisits
-          if (typeof params === 'string') {
-            filename = params
+          let {filename, maxVariations, maxVisits} = params
+          if (maxVariations === undefined) {
             maxVariations = DEFAULT_MAX_VARIATIONS
+          }
+          if (maxVisits === undefined) {
             maxVisits = DEFAULT_MAX_VISITS
-          } else {
-            filename = params.filename
-            maxVariations = params.maxVariations || DEFAULT_MAX_VARIATIONS
-            maxVisits = params.maxVisits || DEFAULT_MAX_VISITS
           }
           if (!JOBS.has(filename)) {
             let filePath = filename

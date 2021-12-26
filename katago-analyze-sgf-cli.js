@@ -25,10 +25,16 @@ function main() {
     }
   ).argv
 
-  let {port, COMMAND, PARAMS} = argv
-  try {
-    PARAMS = JSON.parse(PARAMS)
-  } catch {}
+  const {port, COMMAND, PARAMS} = argv
+  let params
+  if (PARAMS) {
+    try {
+      params = JSON.parse(PARAMS)
+    } catch {
+      console.error(`Error: PARAMS must be a valid JSON string.`)
+      return
+    }
+  }
 
   const connection = net.createConnection(port)
 
@@ -58,7 +64,7 @@ function main() {
   })
 
   connection.on('ready', () => {
-    const request = {method: COMMAND, params: PARAMS, id: 0}
+    const request = {method: COMMAND, params, id: 0}
     connection.write(JSON.stringify(request))
   })
 }
