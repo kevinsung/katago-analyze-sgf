@@ -172,26 +172,38 @@ class Engine extends EventEmitter {
 
   sendQuery(query) {
     const {id, action, analyzeTurns} = query
-    if (action) {
-      this.katago.stdin.write(JSON.stringify(query) + '\n')
-      return null
-    }
     const promises = []
-    analyzeTurns.forEach((turnNumber) => {
+    if (action) {
       const promise = new Promise((resolve, reject) => {
         this.on('responseReceived', (response) => {
-          const {id: responseId, turnNumber: responseTurnNumber} = response
+          const {id: responseId} = response
           if (responseId === id) {
             if (response.error) {
               reject(response)
-            } else if (responseTurnNumber === turnNumber) {
+            } else {
               resolve(response)
             }
           }
         })
       })
       promises.push(promise)
-    })
+    } else {
+      analyzeTurns.forEach((turnNumber) => {
+        const promise = new Promise((resolve, reject) => {
+          this.on('responseReceived', (response) => {
+            const {id: responseId, turnNumber: responseTurnNumber} = response
+            if (responseId === id) {
+              if (response.error) {
+                reject(response)
+              } else if (responseTurnNumber === turnNumber) {
+                resolve(response)
+              }
+            }
+          })
+        })
+        promises.push(promise)
+      })
+    }
     this.katago.stdin.write(JSON.stringify(query) + '\n')
     return promises
   }
@@ -496,23 +508,41 @@ function main() {
         }
         case 'terminate': {
           const {filename} = params
-          let terminated = false
-          if (JOBS.has(filename)) {
+          const exists = JOBS.has(filename)
+          if (exists) {
             const queryIds = JOBS.get(filename)
+            const promises = []
             for (const queryId of queryIds) {
               const query = {
-                id: `${filename}-terminate`,
+                id: `${queryId}-terminate`,
                 action: 'terminate',
                 terminateId: queryId,
               }
-              engine.sendQuery(query)
+              promises.push(engine.sendQuery(query).pop())
             }
-            JOBS.delete(filename)
-            terminated = true
-            log(`Terminated query ${filename}.`)
+            Promise.all(promises).then(() => {
+              JOBS.delete(filename)
+              log(`Terminated query ${filename}.`)
+            })
           }
           const response = {
-            result: terminated,
+            result: exists,
+            id,
+          }
+          connection.write(JSON.stringify(response))
+          break
+        }
+        case 'clear-cache': {
+          const query = {
+            id: 'clear-cache',
+            action: 'clear_cache',
+          }
+          const promise = engine.sendQuery(query).pop()
+          promise.then(() => {
+            log(`Cache cleared.`)
+          })
+          const response = {
+            result: true,
             id,
           }
           connection.write(JSON.stringify(response))
