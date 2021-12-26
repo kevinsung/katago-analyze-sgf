@@ -147,9 +147,9 @@ class Engine extends EventEmitter {
       try {
         const responses = JSON.parse(str)
         this.bufferEnd = 1
-        responses.forEach((response) => {
+        for (const response of responses) {
           this.emit('responseReceived', response)
-        })
+        }
       } catch (error) {
         // JSON couldn't be parsed yet, need to read more data
       }
@@ -188,7 +188,7 @@ class Engine extends EventEmitter {
       })
       promises.push(promise)
     } else {
-      analyzeTurns.forEach((turnNumber) => {
+      for (const turnNumber of analyzeTurns) {
         const promise = new Promise((resolve, reject) => {
           this.on('responseReceived', (response) => {
             const {id: responseId, turnNumber: responseTurnNumber} = response
@@ -202,7 +202,7 @@ class Engine extends EventEmitter {
           })
         })
         promises.push(promise)
-      })
+      }
     }
     this.katago.stdin.write(JSON.stringify(query) + '\n')
     return promises
@@ -274,23 +274,23 @@ function constructQuery(id, rootNode, maxVisits) {
   }
 
   if (rootNode.data.AB) {
-    rootNode.data.AB.forEach((move) => {
+    for (const move of rootNode.data.AB) {
       initialStones.push(['B', sgfToGtpMove(move)])
-    })
+    }
   }
   if (rootNode.data.AW) {
-    rootNode.data.AW.forEach((move) => {
+    for (const move of rootNode.data.AW) {
       initialStones.push(['W', sgfToGtpMove(move)])
-    })
+    }
   }
 
-  moveNodes.forEach((node) => {
+  for (const node of moveNodes) {
     if (node.data.B) {
       moves.push(['B', sgfToGtpMove(node.data.B[0])])
     } else if (node.data.W) {
       moves.push(['W', sgfToGtpMove(node.data.W[0])])
     }
-  })
+  }
 
   for (let i = 0; i <= moves.length; i += 1) {
     analyzeTurns.push(i)
