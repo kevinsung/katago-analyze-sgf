@@ -171,7 +171,11 @@ class Engine extends EventEmitter {
   }
 
   sendQuery(query) {
-    const {id, analyzeTurns} = query
+    const {id, action, analyzeTurns} = query
+    if (action) {
+      this.katago.stdin.write(JSON.stringify(query) + '\n')
+      return null
+    }
     const promises = []
     analyzeTurns.forEach((turnNumber) => {
       const promise = new Promise((resolve, reject) => {
@@ -193,7 +197,7 @@ class Engine extends EventEmitter {
   }
 }
 
-const JOBS = new Set()
+const JOBS = new Map()
 
 let ID = 0
 
@@ -439,16 +443,14 @@ function main() {
             fsPromises
               .stat(filePath)
               .then(() => {
-                JOBS.add(filename)
                 log(`Started processing ${filename}.`)
                 const rootNodes = sgf.parseFile(filePath, {getId})
+                const queryIds = []
                 const filePromises = []
                 for (const [i, rootNode] of rootNodes.entries()) {
-                  const query = constructQuery(
-                    `${filename}-${i}`,
-                    rootNode,
-                    maxVisits
-                  )
+                  const queryId = `${filename}-${i}`
+                  queryIds.push(queryId)
+                  const query = constructQuery(queryId, rootNode, maxVisits)
                   const responsePromises = engine.sendQuery(query)
                   const promise = Promise.all(responsePromises).then(
                     (responses) => {
@@ -457,6 +459,7 @@ function main() {
                   )
                   filePromises.push(promise)
                 }
+                JOBS.set(filename, queryIds)
                 Promise.all(filePromises)
                   .then(() => {
                     const {dir, name, ext} = path.parse(filename)
@@ -491,6 +494,30 @@ function main() {
           }
           const response = {
             result: filename,
+            id,
+          }
+          connection.write(JSON.stringify(response))
+          break
+        }
+        case 'terminate': {
+          const {filename} = params
+          let terminated = false
+          if (JOBS.has(filename)) {
+            const queryIds = JOBS.get(filename)
+            for (const queryId of queryIds) {
+              const query = {
+                id: `${filename}-terminate`,
+                action: 'terminate',
+                terminateId: queryId,
+              }
+              engine.sendQuery(query)
+            }
+            JOBS.delete(filename)
+            terminated = true
+            log(`Terminated query ${filename}.`)
+          }
+          const response = {
+            result: terminated,
             id,
           }
           connection.write(JSON.stringify(response))
