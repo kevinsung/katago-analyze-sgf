@@ -47,6 +47,9 @@ are supported:
         (default: 10)
     -   `maxVisits`: The maximum number of root visits per search
         (default: 1000)
+-   `terminate` Stop processing a file. Parameters:
+    -   `filename`: The name of the SGF file to stop processing
+-   `clear-cache` Clear the neural network cache
 -   `list-jobs` List files currently being processed.
 
 For each SGF file processed, a new SGF file will be created with filename
