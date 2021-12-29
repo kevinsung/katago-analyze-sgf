@@ -2,6 +2,29 @@
 
 Add analysis to SGF files using [KataGo](https://github.com/lightvector/KataGo).
 
+## Installation
+
+### From source
+
+1. Obtain the source code
+
+```
+git clone https://github.com/kevinsung/katago-analyze-sgf.git
+```
+
+2. Install dependencies
+
+```
+cd katago-analyze-sgf
+npm install
+```
+
+3. (Optional) Generate self-contained bundled scripts
+
+```
+npm run build
+```
+
 ## Usage
 
 1. Start the daemon
@@ -64,7 +87,7 @@ following properties are added:
 -   `SCORELEAD`: number of points black is winning by
 -   `SCORESTDEV`: standard deviation of the score lead
 
-## Example
+### Example
 
 1. Start the daemon
 
