@@ -4,6 +4,11 @@ Add analysis to SGF files using [KataGo](https://github.com/lightvector/KataGo).
 
 ## Installation
 
+### Package manager
+
+-   AUR:
+    [katago-analyze-sgf](https://aur.archlinux.org/packages/katago-analyze-sgf/)
+
 ### From source
 
 1. Obtain the source code
