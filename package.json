@@ -1,6 +1,6 @@
 {
   "name": "katago-analyze-sgf",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "description": "Add analysis to SGF files using KataGo",
   "main": "main.js",
   "author": "Kevin J. Sung <kevjsung@umich.edu>",
