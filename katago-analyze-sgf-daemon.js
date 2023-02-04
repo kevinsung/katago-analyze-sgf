@@ -125,23 +125,25 @@ class Engine extends EventEmitter {
     if (this.katago && !this.katago.killed) {
       return
     }
+    let katagoArgs
     if (this.modelPath == null) {
-      this.katago = spawn(this.katagoPath, [
+      katagoArgs = [
         'analysis',
         '-config',
         this.analysisConfig,
         '-quit-without-waiting',
-      ])
+      ]
     } else {
-      this.katago = spawn(this.katagoPath, [
-	'analysis',
-	'-config',
-	this.analysisConfig,
-	'-model',
-	this.modelPath,
-	'-quit-without-waiting',
-    ])
+      katagoArgs = [
+        'analysis',
+        '-config',
+        this.analysisConfig,
+        '-model',
+        this.modelPath,
+        '-quit-without-waiting',
+      ]
     }
+    this.katago = spawn(this.katagoPath, katagoArgs)
     this.katago.stdout.on('readable', () => {
       // copy data into buffer
       let data
@@ -440,9 +442,16 @@ function main() {
     }
   ).argv
 
-  const {ANALYSIS_CONFIG, port, katagoPath, modelPath, sourceDir, destinationDir} = argv
+  const {
+    ANALYSIS_CONFIG,
+    port,
+    katagoPath,
+    modelPath,
+    sourceDir,
+    destinationDir,
+  } = argv
 
-    const engine = new Engine(katagoPath, ANALYSIS_CONFIG, modelPath)
+  const engine = new Engine(katagoPath, ANALYSIS_CONFIG, modelPath)
 
   engine.start()
 
