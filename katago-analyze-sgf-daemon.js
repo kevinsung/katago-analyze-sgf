@@ -125,23 +125,14 @@ class Engine extends EventEmitter {
     if (this.katago && !this.katago.killed) {
       return
     }
-    let katagoArgs
-    if (this.modelPath == null) {
-      katagoArgs = [
-        'analysis',
-        '-config',
-        this.analysisConfig,
-        '-quit-without-waiting',
-      ]
-    } else {
-      katagoArgs = [
-        'analysis',
-        '-config',
-        this.analysisConfig,
-        '-model',
-        this.modelPath,
-        '-quit-without-waiting',
-      ]
+    let katagoArgs = [
+      'analysis',
+      '-config',
+      this.analysisConfig,
+      '-quit-without-waiting',
+    ]
+    if (this.modelPath != null) {
+      katagoArgs.push('-model', this.modelPath)
     }
     this.katago = spawn(this.katagoPath, katagoArgs)
     this.katago.stdout.on('readable', () => {
