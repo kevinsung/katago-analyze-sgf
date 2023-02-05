@@ -109,11 +109,12 @@ const GTP_TO_SGF_ROW = {
 }
 
 class Engine extends EventEmitter {
-  constructor(katagoPath, analysisConfig) {
+  constructor(katagoPath, analysisConfig, modelPath) {
     super()
     this.setMaxListeners(Infinity)
     this.katagoPath = katagoPath
     this.analysisConfig = analysisConfig
+    this.modelPath = modelPath
     this.katago = null
     this.buffer = Buffer.alloc(BUFFER_SIZE)
     this.buffer.write('[')
@@ -124,12 +125,16 @@ class Engine extends EventEmitter {
     if (this.katago && !this.katago.killed) {
       return
     }
-    this.katago = spawn(this.katagoPath, [
+    let katagoArgs = [
       'analysis',
       '-config',
       this.analysisConfig,
       '-quit-without-waiting',
-    ])
+    ]
+    if (this.modelPath != null) {
+      katagoArgs.push('-model', this.modelPath)
+    }
+    this.katago = spawn(this.katagoPath, katagoArgs)
     this.katago.stdout.on('readable', () => {
       // copy data into buffer
       let data
@@ -412,6 +417,11 @@ function main() {
         type: 'string',
         default: 'katago',
       })
+      yargs.option('model-path', {
+        describe: 'Path to the KataGo neural net model.',
+        type: 'string',
+        default: null,
+      })
       yargs.option('source-dir', {
         describe: 'Directory containing the original SGF files.',
         type: 'string',
@@ -423,9 +433,16 @@ function main() {
     }
   ).argv
 
-  const {ANALYSIS_CONFIG, port, katagoPath, sourceDir, destinationDir} = argv
+  const {
+    ANALYSIS_CONFIG,
+    port,
+    katagoPath,
+    modelPath,
+    sourceDir,
+    destinationDir,
+  } = argv
 
-  const engine = new Engine(katagoPath, ANALYSIS_CONFIG)
+  const engine = new Engine(katagoPath, ANALYSIS_CONFIG, modelPath)
 
   engine.start()
 
